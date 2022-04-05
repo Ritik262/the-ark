@@ -1,4 +1,4 @@
-import selenium_helpers
+from . import selenium_helpers
 import traceback
 
 FIELD_IDENTIFIER = "type"
@@ -77,14 +77,14 @@ class FieldHandler:
         except FieldHandlerException as fhe:
             message = "Encountered an error dispatching the field"
             if "name" in field:
-                message += " named '{0}'".format(field["name"])
-            fhe.msg = "{0} | {1}".format(message, fhe.msg)
+                message += f" named {field['name']!r}"
+            fhe.msg = f"{message} | {fhe.msg}"
             raise fhe
 
         except KeyError as key:
-            message = "The key {0} is missing from the field data".format(key)
+            message = f"The key {key} is missing from the field data"
             if "name" in field:
-                message += " for the field named '{0}'".format(field["name"])
+                message += f" for the field named {field['name']!r}"
             message += " and so the Field Handler was unable to dispatch the field."
             raise MissingKey(message, key, stacktrace=traceback.format_exc(),
                              details={"missing_key": str(key), "field_data": field})
@@ -92,8 +92,8 @@ class FieldHandler:
         except Exception as e_text:
             message = "An Unhandled Exception emerged while handling the field"
             if "name" in field:
-                message += " named '{0}'".format(field["name"])
-            message += " | {0}".format(e_text)
+                message += f" named {field['name']!r}"
+            message += f" | {e_text}"
             raise FieldHandlerException(message, stacktrace=traceback.format_exc())
 
     def handle_text(self, css_selector="", input_text="", confirm_css_selector=None):
@@ -119,7 +119,7 @@ class FieldHandler:
             raise error
 
         except Exception as e_text:
-            message = "An Unhandled Exception emerged while filling a Text field: {0}".format(e_text)
+            message = f"An Unhandled Exception emerged while filling a Text field: {e_text}"
             raise FieldHandlerException(message)
 
     def handle_check_box(self, enums, input_indexes):
@@ -144,8 +144,7 @@ class FieldHandler:
                 self.sh.click_an_element(css_selector=enums[index]["css_selector"])
 
         except KeyError as key:
-            message = "Key {0} is missing from the dictionary at " \
-                      "index {1} in the enum list: {2}".format(key, current_test_index, enums[current_test_index])
+            message = f"Key {key} is missing from the dictionary at index {current_test_index} in the enum list: {enums[current_test_index]}"
             raise MissingKey(message, key, stacktrace=traceback.format_exc())
 
         except selenium_helpers.SeleniumHelperExceptions as selenium_error:
@@ -154,7 +153,7 @@ class FieldHandler:
             raise error
 
         except Exception as e_text:
-            message = "An Unhandled Exception emerged while filling a Check Box field: {0}".format(e_text)
+            message = f"An Unhandled Exception emerged while filling a Check Box field: {e_text}"
             raise FieldHandlerException(message)
 
     def handle_radio_button(self, enums, input_index):
@@ -174,8 +173,7 @@ class FieldHandler:
             self.sh.click_an_element(css_selector=enums[input_index]["css_selector"])
 
         except KeyError as key:
-            message = "Key {0} is missing from the dictionary at " \
-                      "index {1} in the enum list: {2}".format(key, input_index, enums[input_index])
+            message = f"Key {key} is missing from the dictionary at index {input_index} in the enum list: {enums[input_index]}"
             raise MissingKey(message, key, stacktrace=traceback.format_exc())
 
         except selenium_helpers.SeleniumHelperExceptions as selenium_error:
@@ -184,7 +182,7 @@ class FieldHandler:
             raise error
 
         except Exception as e_text:
-            message = "An Unhandled Exception emerged while filling a Radio Button field: {0}".format(e_text)
+            message = f"An Unhandled Exception emerged while filling a Radio Button field: {e_text}"
             raise FieldHandlerException(message)
 
     def handle_select(self, css_selector, input_index, first_valid=False):
@@ -205,8 +203,7 @@ class FieldHandler:
             if first_valid:
                 index_offset = 1
 
-            self.sh.click_an_element(css_selector="{0} option:nth-child({1})".format(
-                css_selector, input_index + index_offset))
+            self.sh.click_an_element(css_selector=f"{css_selector} option:nth-child({(input_index + index_offset)})")
 
         except selenium_helpers.SeleniumHelperExceptions as selenium_error:
             message = "A selenium issue arose while attempting to select the given select option element."
@@ -214,7 +211,7 @@ class FieldHandler:
             raise error
 
         except Exception as e_text:
-            message = "An Unhandled Exception emerged while filling a Select field: {0}".format(e_text)
+            message = f"An Unhandled Exception emerged while filling a Select field: {e_text}"
             raise FieldHandlerException(message)
 
     def handle_drop_down(self, css_selector, enums, input_index):
@@ -239,8 +236,8 @@ class FieldHandler:
             self.sh.click_an_element(css_selector=enums[input_index]["css_selector"])
 
         except KeyError as key:
-            message = "Key {0} is missing from the dictionary at " \
-                      "index {1} in the enum list: {2}".format(key, input_index, enums[input_index])
+            message = f"Key {key} is missing from the dictionary at " \
+                      f"index {input_index} in the enum list: {(enums[input_index])}"
             raise MissingKey(message, key)
 
         except selenium_helpers.SeleniumHelperExceptions as selenium_error:
@@ -249,7 +246,7 @@ class FieldHandler:
             raise error
 
         except Exception as e_text:
-            message = "An Unhandled Exception emerged while filling a Drop Down field: {0}".format(e_text)
+            message = f"An Unhandled Exception emerged while filling a Drop Down field: {e_text}"
             raise FieldHandlerException(message)
 
     def handle_button(self, css_selector):
@@ -269,7 +266,7 @@ class FieldHandler:
             raise error
 
         except Exception as e_text:
-            message = "An Unhandled Exception emerged while attempting to click the button: {0}".format(e_text)
+            message = f"An Unhandled Exception emerged while attempting to click the button: {e_text}"
             raise FieldHandlerException(message)
 
 
@@ -283,13 +280,13 @@ class FieldHandlerException(Exception):
     def __str__(self):
         exception_msg = "Field Handler Exception: \n"
         if self.stacktrace is not None:
-            exception_msg += "{0}".format(self.stacktrace)
+            exception_msg += f"{self.stacktrace}"
         if self.details:
             detail_string = "\nException Details:\n"
             for key, value in self.details.items():
-                detail_string += "{0}: {1}\n".format(key, value)
+                detail_string += f"{key}: {value}\n"
             exception_msg += detail_string
-        exception_msg += "Message: {0}".format(self.msg)
+        exception_msg += f"Message: {self.msg}"
 
         return exception_msg
 
@@ -297,14 +294,14 @@ class FieldHandlerException(Exception):
 class MissingKey(FieldHandlerException):
     def __init__(self, message, key, stacktrace=None, details=None):
         super(MissingKey, self).__init__(msg=message, stacktrace=stacktrace, details=details)
-        self.key = "{0}".format(key)
+        self.key = f"{key}"
         if details:
             self.details["missing_key"] = details.get("missing_key") or key
 
 
 class SeleniumError(FieldHandlerException):
     def __init__(self, message, selenium_helper_exception):
-        new_message = "{0} | {1}".format(message, selenium_helper_exception.msg)
+        new_message = f"{message} | {selenium_helper_exception.msg}"
         super(SeleniumError, self).__init__(msg=new_message,
                                             stacktrace=selenium_helper_exception.stacktrace,
                                             details=selenium_helper_exception.details)
@@ -312,9 +309,9 @@ class SeleniumError(FieldHandlerException):
 
 class UnknownFieldType(FieldHandlerException):
     def __init__(self, field_type, stacktrace=None):
-        message = """An unknown field type of '{0}' was passed through to the field handler dispatch method.
+        message = f"""An unknown field type of {field_type!r} was passed through to the field handler dispatch method.
                   Please review the field's configuration and look for typos or field types that should
-                  potentially be added.""".format(field_type)
+                  potentially be added."""
         super(UnknownFieldType, self).__init__(msg=message, stacktrace=stacktrace)
-        self.field_type = "{0}".format(field_type)
+        self.field_type = f"{field_type}"
         self.details["unknown_field_type"] = field_type

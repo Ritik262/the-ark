@@ -1,5 +1,5 @@
 import time
-import urlparse
+from urllib.parse import urlparse, urljoin
 
 from the_ark import input_generator
 from the_ark.field_handlers import STRING_FIELD, EMAIL_FIELD, PHONE_FIELD, ZIP_CODE_FIELD, DATE_FIELD
@@ -25,7 +25,7 @@ class Actions:
             for action in action_list:
                 self.dispatch_action(action, element)
         except TypeError as e:
-            raise ActionException("Please ensure you pass through a list type in the action_list paramater | {}".format(e))
+            raise ActionException(f"Please ensure you pass through a list type in the action_list paramater | {e}")
 
     def dispatch_action(self, action, element=None):
         """
@@ -37,25 +37,24 @@ class Actions:
             getattr(self, action_type)(action, element)
 
         except SeleniumHelperExceptions as selenium_error:
-            message = "A Selenium error was caught while performing a '{}' action".format(selenium_error, action_type)
+            message = f"A Selenium error was caught while performing a {action_type!r} action. {selenium_error}"
             raise ActionException(message)
 
         except KeyError as key_error:
-            message = "A KeyError Exception for the key named {} was raised while performing a '{}' action! " \
+            message = f"A KeyError Exception for the key named {key_error} was raised while performing a {action_type!r} action! " \
                       "Check the spelling of the key and/or update the configuration schema" \
-                      "to include a check for the proper key's existence".format(key_error, action_type)
+                      "to include a check for the proper key's existence"
             raise ActionException(message)
 
         except AttributeError as attr_error:
-            message = "An AttributeError Exception was raised while performing a '{}' action! Check the spelling " \
+            message = f"An AttributeError Exception was raised while performing a {action_type!r} action! Check the spelling " \
                       "of the action and/or update the configuration schema to include a check " \
-                      "for the proper naming of this action. Error: {}".format(action_type, attr_error)
+                      f"for the proper naming of this action. Error: {attr_error}"
             raise ActionException(message)
 
         except Exception as actions_error:
-            raise ActionException("An error occurred while performing a '{}' "
-                                  "action on {} | {}".format(action_type, self.sh.get_current_url or "No-URL",
-                                                             actions_error))
+            raise ActionException(f"An error occurred while performing a {action_type!r} "
+                                  f"action on {(self.sh.get_current_url or 'No-URL')} | {actions_error}")
 
     def load_url(self, action, element=None):
         """
@@ -71,9 +70,9 @@ class Actions:
             url += path
 
         if path and not url:
-            url_parse = urlparse.urlparse(self.sh.get_current_url())
-            base = "{}://{}".format(url_parse.scheme, url_parse.netloc)
-            url = urlparse.urljoin(base, path)
+            url_parse = urlparse(self.sh.get_current_url())
+            base = f"{url_parse.scheme}://{url_parse.netloc}"
+            url = urljoin(base, path)
 
         self.sh.load_url(url, action.get(BYPASS_404_KEY))
 
@@ -121,8 +120,7 @@ class Actions:
             elif input_type == DATE_FIELD:
                 text = input_generator.generate_date()
             else:
-                raise ActionException("The given input type of '{}' is not a known type and we could not generate text "
-                                      "for this action".format(input_type))
+                raise ActionException(f"The given input type of {input_type!r} is not a known type and we could not generate text for this action")
         else:
             text = action[INPUT_KEY]
 
@@ -220,8 +218,8 @@ class Actions:
         if not self.sh.element_exists(action[CSS_SELECTOR_KEY]):
             # Get pissed if the allow_empty key is True or not given
             if not action.get(ALLOW_EMPTY_KEY):
-                message = "There were no elements found using the css selector '{}'. Exiting the for_each action and " \
-                          "continuing with the remaining actions on this page".format(action[CSS_SELECTOR_KEY])
+                message = f"There were no elements found using the css selector {action[CSS_SELECTOR_KEY]!r}. Exiting the for_each action and " \
+                          "continuing with the remaining actions on this page"
                 raise ActionException(message)
         else:
             elements = self.sh.get_list_of_elements(action[CSS_SELECTOR_KEY])
@@ -245,12 +243,12 @@ class ActionException(Exception):
     def __str__(self):
         exception_msg = "Action Class Exception: \n"
         if self.stacktrace is not None:
-            exception_msg += "{0}".format(self.stacktrace)
+            exception_msg += f"{self.stacktrace}"
         if self.details:
             detail_string = "\nException Details:\n"
             for key, value in self.details.items():
-                detail_string += "{0}: {1}\n".format(key, value)
+                detail_string += f"{key}: {value}\n"
             exception_msg += detail_string
-        exception_msg += "Message: {0}".format(self.msg)
+        exception_msg += f"Message: {self.msg}"
 
         return exception_msg

@@ -1,8 +1,9 @@
+import base64
 import math
 import numpy
 from PIL import Image
-from the_ark.selenium_helpers import SeleniumHelperExceptions, ElementNotVisibleError, ElementError
-from StringIO import StringIO
+from src.the_ark.selenium_helpers import SeleniumHelperExceptions, ElementNotVisibleError, ElementError
+from io import StringIO, BytesIO
 import time
 import traceback
 
@@ -76,11 +77,11 @@ class Screenshot:
                 return self._capture_full_page()
 
         except SeleniumHelperExceptions as selenium_error:
-            message = "A selenium issue arose while taking the screenshot".format()
+            message = "A selenium issue arose while taking the screenshot"
             error = SeleniumError(message, selenium_error)
             raise error
         except Exception as e:
-            message = "Unhandled exception while taking the screenshot | {0}".format(e)
+            message = f"Unhandled exception while taking the screenshot | {e}"
             raise ScreenshotException(message, stacktrace=traceback.format_exc())
 
     def capture_scrolling_element(self, css_selector, viewport_only=True, scroll_padding=None):
@@ -127,7 +128,7 @@ class Screenshot:
             raise error
         except Exception as e:
             message = "Unhandled exception while taking the scrolling screenshot " \
-                      "of the element '{0}' | {1}".format(css_selector, e)
+                      f"of the element {css_selector!r} | {e}"
             raise ScreenshotException(message,
                                       stacktrace=traceback.format_exc(),
                                       details={"css_selector": css_selector})
@@ -176,7 +177,7 @@ class Screenshot:
             raise error
         except Exception as e:
             message = "Unhandled exception while taking the scrolling screenshot " \
-                      "of the element '{0}' | {1}".format(css_selector, e)
+                      f"of the element {css_selector!r} | {e}"
             raise ScreenshotException(message,
                                       stacktrace=traceback.format_exc(),
                                       details={"css_selector": css_selector})
@@ -286,24 +287,24 @@ class Screenshot:
                 # Loop through, starting at one for multiplication purposes
                 for i in range(1, number_of_loops + 1):
                     image_data = self.sh.get_screenshot_base64()
-                    image = Image.open(StringIO(image_data.decode('base64')))
+                    decoded_data = base64.b64decode(image_data)
+                    image = Image.open(BytesIO(decoded_data))
                     images_list.append(image)
                     self.sh.scroll_window_to_position(self.max_height * i)
 
-                # Combine al of the images into one capture
+                # Combine all of the images into one capture
                 image = self._combine_vertical_images(images_list, content_height)
             else:
                 # Gather image byte data
                 image_data = self.sh.get_screenshot_base64()
                 # Create an image canvas and write the byte data to it
-                image = Image.open(StringIO(image_data.decode('base64')))
-
+                decoded_data = base64.b64decode(image_data)
+                image = Image.open(BytesIO(decoded_data))
         else:
             # Gather image byte data
             image_data = self.sh.get_screenshot_base64()
             # Create an image canvas and write the byte data to it
-            image = Image.open(StringIO(image_data.decode('base64')))
-
+            image = Image.open(BytesIO(base64.b64decode(image_data)))
         # - Return the browser to its previous size and scroll position
         if not viewport_only:
             self.sh.resize_browser(width, height)
@@ -387,7 +388,9 @@ class Screenshot:
         while True:
             # Capture the image
             image_data = self.sh.get_screenshot_base64()
-            image_file = self._create_image_file(Image.open(StringIO(image_data.decode('base64'))))
+            decoded_data = base64.b64decode(image_data)
+            image = Image.open(BytesIO(decoded_data))
+            image_file = self._create_image_file(image)
             image_list.append(image_file)
 
             # Scroll for the next one!
@@ -415,13 +418,18 @@ class Screenshot:
         # - Capture the image
         # Gather image byte data
         image_data = self.sh.get_screenshot_base64()
+    
         # Create an image canvas and write the byte data to it
-        image = Image.open(StringIO(image_data.decode('base64')))
+        # image = Image.open(StringIO(image_data.decode('base64')))
+        decoded_data = base64.b64decode(image_data)
+        image = Image.open(BytesIO(decoded_data))
+
+        # image = Image.open(StringIO(base64.b64encode(base64.b64decode(image_data))))
+        # image = Image.open(BytesIO(image_data))
 
         # - Crop the image to just the visible area
         # Top of the viewport
         current_scroll_position = self.sh.get_window_current_scroll_position()
-
         # Viewport Dimensions
         viewport_width, viewport_height = self.sh.get_viewport_size()
 
@@ -518,7 +526,7 @@ class Screenshot:
             return stitched_image
 
         except Exception as e:
-            message = "Error while cropping and stitching a full page screenshot | {0}".format(e)
+            message = f"Error while cropping and stitching a full page screenshot | {e}"
             raise ScreenshotException(message, stacktrace=traceback.format_exc())
 
     def _create_image_file(self, image):
@@ -531,12 +539,12 @@ class Screenshot:
             - image_file:   StingIO() - The stringIO object containing the saved image
         """
         # Instantiate the file object
-        image_file = StringIO()
+        # image_file = StringIO()
+        image_file = BytesIO() # JB
         # Save the image canvas to the file as the given file type
         image.save(image_file, self.file_extenson.upper())
         # Set the file marker back to the beginning
         image_file.seek(0)
-
         return image_file
 
 
@@ -551,16 +559,16 @@ class ScreenshotException(Exception):
         exception_msg = "Screenshot Exception: \n"
         detail_string = "Exception Details:\n"
         for key, value in self.details.items():
-            detail_string += "{0}: {1}\n".format(key, value)
+            detail_string += f"{key}: {value}\n"
         exception_msg += detail_string
-        exception_msg += "Message: {0}".format(self.msg)
+        exception_msg += f"Message: {self.msg}"
 
         return exception_msg
 
 
 class SeleniumError(ScreenshotException):
     def __init__(self, message, selenium_helper_exception):
-        new_message = "{0} | {1}".format(message, selenium_helper_exception.msg)
+        new_message = f"{message} | {selenium_helper_exception.msg}"
         super(SeleniumError, self).__init__(msg=new_message,
                                             stacktrace=selenium_helper_exception.stacktrace,
                                             details=selenium_helper_exception.details)

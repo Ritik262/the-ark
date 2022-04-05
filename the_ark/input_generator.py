@@ -1,6 +1,6 @@
 from copy import deepcopy
 from datetime import datetime, timedelta
-from field_handlers import DROP_DOWN_FIELD, CHECK_BOX_FIELD, RADIO_FIELD, SELECT_FIELD, BUTTON_FIELD, STRING_FIELD, \
+from .field_handlers import DROP_DOWN_FIELD, CHECK_BOX_FIELD, RADIO_FIELD, SELECT_FIELD, BUTTON_FIELD, STRING_FIELD, \
     PHONE_FIELD, ZIP_CODE_FIELD, DATE_FIELD, INTEGER_FIELD, EMAIL_FIELD, All_FIELD_TYPES, FIELD_IDENTIFIER, PASSWORD_FIELD
 import random
 import string
@@ -14,7 +14,7 @@ DEFAULT_INTEGER_MIN = 1
 DEFAULT_INTEGER_MAX = 9
 DEFAULT_INTEGER = 1
 DEFAULT_INDEX_OPTIONS = 2
-DEFAULT_DOMAIN = "meltmedia.com"
+DEFAULT_DOMAIN = "meltmedia"
 DEFAULT_START_DATE = str((datetime.now() - timedelta(weeks=52 * 20)).date())
 DEFAULT_END_DATE = str((datetime.now() - timedelta(weeks=52 * 100)).date())
 DEFAULT_DATE_FORMAT = "%m/%d/%Y"
@@ -78,14 +78,14 @@ def dispatch_field(field_data, test_number=1):
     except InputGeneratorException as ige:
         message = "Encountered an error dispatching the field"
         if "name" in field_data:
-            message += " named '{0}'".format(field_data["name"])
-        ige.msg = "{0} | {1}".format(message, ige.msg)
+            message += f" named {field_data['name']!r}"
+        ige.msg = f"{message} | {ige.msg}"
         raise ige
 
     except KeyError as key:
-        message = "The key {0} is missing from the field data".format(key)
+        message = f"The key {key} is missing from the field data"
         if "name" in field_data:
-            message += " for the field named '{0}'".format(field_data["name"])
+            message += f" for the field named {(field_data['name'])!r}"
         message += ", thus the Input Generator was unable to dispatch the field."
         raise MissingKey(message, key, stacktrace=traceback.format_exc(),
                          details={"missing_key": str(key), "field_data": field_data})
@@ -93,8 +93,8 @@ def dispatch_field(field_data, test_number=1):
     except Exception as e_text:
         message = "An Unhandled Exception emerged while generating an input for the field"
         if "name" in field_data:
-            message += " named '{0}'".format(field_data["name"])
-        message += " | {0}".format(e_text)
+            message += f" named {field_data['name']!r}"
+        message += f" | {e_text}"
         raise InputGeneratorException(message, stacktrace=traceback.format_exc())
 
 
@@ -164,7 +164,7 @@ def generate_string(min_length=DEFAULT_STRING_MIN, max_length=DEFAULT_STRING_MAX
         return random_string
 
     except Exception as e_text:
-        message = "Unhandled Exception caught while generating a String: {0}".format(e_text)
+        message = f"Unhandled Exception caught while generating a String: {e_text}"
         raise InputGeneratorException(message)
 
 
@@ -195,12 +195,12 @@ def generate_integer(min_int=DEFAULT_INTEGER_MIN, max_int=DEFAULT_INTEGER_MAX,
             integer = ""
         else:
             # Create the integer value between the min and max and with the padding provided
-            integer = "{0:0{1}d}".format(random.randint(min_int, max_int), padding)
+            integer = f"{random.randint(min_int, max_int):0{padding}d}"
 
         return integer
 
     except Exception as e_text:
-        message = "Unhandled Exception caught while generating an Integer: {0}".format(e_text)
+        message = f"Unhandled Exception caught while generating an Integer: {e_text}"
         raise InputGeneratorException(message)
 
 
@@ -232,12 +232,12 @@ def generate_email(domain=DEFAULT_DOMAIN, test_number=1, required=True):
             if domain == DEFAULT_DOMAIN:
                 email = "test+"
 
-            email += "{0}.{1}@{2}".format(first_name, last_name, domain)
+            email += f"{first_name}.{last_name}@{domain}"
 
             return email
 
     except Exception as e_text:
-        message = "Unhandled Exception caught while generating an Email: {0}".format(e_text)
+        message = "Unhandled Exception caught while generating an Email: {e_text}"
         raise InputGeneratorException(message)
 
 
@@ -257,12 +257,12 @@ def generate_password(test_number=1, required=True):
         body = generate_string(5, 6)
         character_position = random.randint(0, len(SPECIAL_CHARACTER_LIST) - 1)
         character = SPECIAL_CHARACTER_LIST[character_position]
-        password = "{0}{1}{2}{3}".format(first_letter, body, number, character)
+        password = f"{first_letter}{body}{number}{character}"
 
         return password
 
     except Exception as e_text:
-        message = "Unhandled Exception caught while generating an Password: {0}".format(e_text)
+        message = f"Unhandled Exception caught while generating an Password: {e_text}"
         raise InputGeneratorException(message)
 
 
@@ -304,35 +304,35 @@ def generate_phone(decimals=False, parenthesis=False, dash=False, space=False, t
             # - Format the number
             # Use only the decimal formatting if the user specified they wanted decimals
             if decimals:
-                phone_number = "{0}.{1}.{2}".format(area_code, start, finish)
+                phone_number = f"{area_code}.{start}.{finish}"
             else:
                 # Surround the area code in parenthesis if parenthesis parameter is True
-                area_code = "({0})".format(area_code) if parenthesis else area_code
+                area_code = f"({area_code})" if parenthesis else area_code
 
                 # Format the "number" portion of the phone number
                 # Dash takes precedence over space
                 if dash:
                     if not space and not parenthesis:
-                        number = "-{0}-{1}".format(start, finish)
+                        number = f"-{start}-{finish}"
                     else:
                         # Add the dash between the start and finish of the number if dash parameter is True
-                        number = "{0}-{1}".format(start, finish)
+                        number = f"{start}-{finish}"
                 elif space:
                     # Add a space if space parameter is True, but dash is False
-                    number = "{0} {1}".format(start, finish)
+                    number = f"{start} {finish}"
                 else:
-                    number = "{0}{1}".format(start, finish)
+                    number = f"{start}{finish}"
 
                 # Stitch the area code and number together
                 if space:
-                    phone_number = "{0} {1}".format(area_code, number)
+                    phone_number = f"{area_code} {number}"
                 else:
                     phone_number = area_code + number
 
         return phone_number
 
     except Exception as e_text:
-        message = "Unhandled Exception caught while generating a Phone Number: {0}".format(e_text)
+        message = f"Unhandled Exception caught while generating a Phone Number: {e_text}"
         raise InputGeneratorException(message)
 
 
@@ -362,7 +362,7 @@ def generate_zip_code(test_number=1, required=True):
         return zip_code
 
     except Exception as e_text:
-        message = "Unhandled Exception caught while generating an Zip Code: {0}".format(e_text)
+        message = f"Unhandled Exception caught while generating an Zip Code: {e_text}"
         raise InputGeneratorException(message)
 
 
@@ -413,7 +413,7 @@ def generate_index(num_of_options=DEFAULT_INDEX_OPTIONS, test_number=1, required
         return input_index
 
     except Exception as e_text:
-        message = "Unhandled Exception caught while generating an input index: {0}".format(e_text)
+        message = f"Unhandled Exception caught while generating an input index: {e_text}"
         raise InputGeneratorException(message)
 
 
@@ -523,7 +523,7 @@ def generate_date(start_date=DEFAULT_START_DATE, end_date=DEFAULT_END_DATE, date
             return time.strftime(date_format, time.localtime(random_time))
 
     except Exception as e_text:
-        message = "Unhandled Exception caught while generating a Date: {0}".format(e_text)
+        message = f"Unhandled Exception caught while generating a Date: {e_text}"
         raise InputGeneratorException(message)
 
 
@@ -537,13 +537,13 @@ class InputGeneratorException(Exception):
     def __str__(self):
         exception_msg = "Input Generator Exception: \n"
         if self.stacktrace is not None:
-            exception_msg += "{0}".format(self.stacktrace)
+            exception_msg += f"{self.stacktrace}"
         if self.details:
             detail_string = "\nException Details:\n"
             for key, value in self.details.items():
-                detail_string += "{0}: {1}\n".format(key, value)
+                detail_string += f"{key}: {value}\n"
             exception_msg += detail_string
-        exception_msg += "Message: {0}".format(self.msg)
+        exception_msg += f"Message: {self.msg}"
 
         return exception_msg
 
@@ -551,7 +551,7 @@ class InputGeneratorException(Exception):
 class MissingKey(InputGeneratorException):
     def __init__(self, message, key, stacktrace=None, details=None):
         super(MissingKey, self).__init__(msg=message, stacktrace=stacktrace, details=details)
-        self.key = "{0}".format(key)
+        self.key = f"{key}"
         self.details["missing_key"] = key if details is None or "missing_key" not in details else details["missing_key"]
 
 
@@ -564,9 +564,9 @@ class MinGreaterThanMax(InputGeneratorException):
 
 class UnknownFieldType(InputGeneratorException):
     def __init__(self, field_type, stacktrace=None):
-        message = """An unknown field type of '{0}' was passed through to the input generator dispatch method.
+        message = f"""An unknown field type of {field_type!r} was passed through to the input generator dispatch method.
                   Please review the field's configuration and look for typos or field types that should
-                  potentially be added.""".format(field_type)
+                  potentially be added."""
         super(UnknownFieldType, self).__init__(msg=message, stacktrace=stacktrace)
-        self.field_type = "{0}".format(field_type)
+        self.field_type = f"{field_type}"
         self.details["unknown_field_type"] = field_type

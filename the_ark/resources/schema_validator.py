@@ -15,11 +15,10 @@ def validate(data, schema):
         jsonschema.validate(data, schema)
     except (ValidationError, RefResolutionError) as jsonschema_exception:
         # TODO: Check for specific errors, like URL's that have a slash at the end, and give specific messages back
-        message = "The given data was not valid based on the given schema: {0}".format(jsonschema_exception)
+        message = f"The given data was not valid based on the given schema: {jsonschema_exception}"
         raise SchemaValidationError(message, data, schema)
     except Exception as e:
-        error_message = "Unexpected problem encountered while validating the data against the schema. " \
-                        "Caught Exception: {0}".format(e)
+        error_message = f"Unexpected problem encountered while validating the data against the schema. Caught Exception: {e}"
         raise SchemaValidationError(error_message, data, schema)
 
     return True

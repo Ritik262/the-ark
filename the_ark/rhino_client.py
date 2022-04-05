@@ -16,7 +16,7 @@ class RhinoClient(object):
         :param test_name: The name of the tests that is creating the client.
         """
         self.log = logging.getLogger(self.__class__.__name__)
-        self.rhino_url = "http://{0}/api/".format(rhino_client_url)
+        self.rhino_url = f"http://{rhino_client_url}/api/"
         self.posted = False
         self.test_data = {
             "branch": branch,
@@ -63,7 +63,7 @@ class RhinoClient(object):
         if r.status_code == 201:
             self.test_data = r.json()
         else:
-            msg = "Cannot POST {0} to {1}. Status Code: {2}".format(self.test_data, self.rhino_url, r.status_code)
+            msg = f"Cannot POST {self.test_data} to {self.rhino_url}. Status Code: {r.status_code}"
             self.log.error(msg)
             raise RhinoClientException(msg)
         self.posted = True
@@ -86,7 +86,7 @@ class RhinoClient(object):
             if r.status_code == 201:
                 self.test_data = r.json()
             else:
-                msg = "Cannot PUT to {0}. Status Code: {1}".format(self.rhino_url, r.status_code)
+                msg = f"Cannot PUT to {self.rhino_url}. Status Code: {r.status_code}"
                 self.log.error(msg)
                 raise RhinoClientException(msg)
         else:

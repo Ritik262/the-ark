@@ -20,14 +20,14 @@ setup(
     packages=['the_ark', 'the_ark.resources'],
     long_description=readme(),
         install_requires=[
-        "boto >= 2.29.1",
-        "requests >= 2.3.0",
-        "selenium >= 2.53.0"
+        "boto3==1.21.23",
+        "requests==2.25.1",
+        "selenium==4.1.3"
     ],
     classifiers=[
         "Development Status :: 1 - Planning",
         "Topic :: Utilities",
-        "Programming Language :: Python :: 2.7",
+        "Programming Language :: Python :: 3.9.7",
         "License :: OSI Approved :: Apache Software License",
     ],
 )

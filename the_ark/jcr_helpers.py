@@ -1,4 +1,4 @@
-import urlparse
+from urllib.parse import urlparse, urlunparse
 import requests
 import traceback
 
@@ -19,37 +19,34 @@ def get_jcr_content(root_url, root_path, depth=0, infinity=False):
     """
     # cleanup input strings, add protocol to url if one isn't provided
     root_path = root_path[:-5] if root_path.endswith('.html') else root_path
-    root_path = "/{}".format(root_path) if not root_path.startswith('/') else root_path
+    root_path = f"/{root_path}" if not root_path.startswith('/') else root_path
     root_url = root_url[:-1] if root_url.endswith('/') else root_url
-    if not urlparse.urlparse(root_url).scheme:
+    if not urlparse(root_url).scheme:
         root_url = "http://" + root_url
     jcr_content_url = root_url
 
     try:
-        parsed_url = urlparse.urlparse(root_url)
+        parsed_url = urlparse(root_url)
         if infinity:
-            jcr_content_url = "{}.infinity.json".format(
-                urlparse.urlunparse((parsed_url.scheme, parsed_url.netloc, root_path, None, None, None)))
+            jcr_content_url = f"{(urlunparse((parsed_url.scheme, parsed_url.netloc, root_path, None, None, None)))}.infinity.json"
         else:
-            jcr_content_url = "{}.{}.json".format(
-                urlparse.urlunparse((parsed_url.scheme, parsed_url.netloc, root_path, None, None, None)),
-                depth)
+            jcr_content_url = f"{urlunparse((parsed_url.scheme, parsed_url.netloc, root_path, None, None, None))}.{depth}.json"
 
         infinity_json = requests.get(jcr_content_url).json()
 
         return infinity_json
     except requests.RequestException as re:
         message = "A Request Exception occurred when attempting to " \
-                  "retrieve the jcr infinity JSON for url: {} | " \
-                  "Exception: {}".format(jcr_content_url, re.message)
+                  f"retrieve the jcr infinity JSON for url: {jcr_content_url} | " \
+                  f"Exception: {re.message}"
         raise JCRHelperException(message, stacktrace=traceback.format_exc())
     except ValueError as ve:
-        message = "Unable to retrieve the jcr infinity JSON. JSON was not returned for url: {} | " \
-                  "Exception: {}".format(jcr_content_url, ve.message)
+        message = f"Unable to retrieve the jcr infinity JSON. JSON was not returned for url: {jcr_content_url} | " \
+                  "Exception: {ve.message}"
         raise JCRHelperException(message, stacktrace=traceback.format_exc())
     except Exception as e:
-        message = "An unexpected error occurred when retrieving the jcr infinity JSON for url: {} | " \
-                  "Exception: {}".format(jcr_content_url, e.message)
+        message = f"An unexpected error occurred when retrieving the jcr infinity JSON for url: {jcr_content_url} | " \
+                  f"Exception: {e.message}"
         raise JCRHelperException(message, stacktrace=traceback.format_exc())
 
 
@@ -68,9 +65,9 @@ def get_page_hierarchy(root_url, root_path, include_jcr_content=False, **kwargs)
     """
     # cleanup input strings, add protocol to url if one isn't provided
     root_path = root_path[:-5] if root_path.endswith('.html') else root_path
-    root_path = "/{}".format(root_path) if not root_path.startswith('/') else root_path
+    root_path = f"/{root_path}" if not root_path.startswith('/') else root_path
     root_url = root_url[:-1] if root_url.endswith('/') else root_url
-    if not urlparse.urlparse(root_url).scheme:
+    if not urlparse(root_url).scheme:
         root_url = "http://" + root_url
 
     jcr_json = kwargs.get("jcr_json")
@@ -85,8 +82,8 @@ def get_page_hierarchy(root_url, root_path, include_jcr_content=False, **kwargs)
                     root_url=root_url, root_path=jcr_json[0].split('.')[0], depth=jcr_json[0].split('.')[1])
 
         node_hash = {
-            "{}.html".format(root_path): {
-                "url": "{}{}.html".format(root_url, root_path),
+            f"{root_path}.html": {
+                "url": f"{root_url}{root_path}.html",
                 "depth": kwargs.get("depth", 0),
                 "template": jcr_json.get("jcr:content").get("cq:template"),
                 "children": []
@@ -94,26 +91,26 @@ def get_page_hierarchy(root_url, root_path, include_jcr_content=False, **kwargs)
         }
 
         if include_jcr_content:
-            node_hash["{}.html".format(root_path)]["jcr_content"] = jcr_json.get("jcr:content")
+            node_hash[f"{root_path}.html"]["jcr_content"] = jcr_json.get("jcr:content")
 
         # Set node's parent path if it exists, else False
         if "parent_path" in kwargs:
-            node_hash["{}.html".format(root_path)]["parent"] = "{}.html".format(kwargs.get("parent_path"))
+            node_hash[f"{root_path}.html"]["parent"] = f"{(kwargs.get('parent_path'))}.html"
         else:
-            node_hash["{}.html".format(root_path)]["parent"] = False
+            node_hash[f"{root_path}.html"]["parent"] = False
 
         for key, value in jcr_json.iteritems():
             if isinstance(value, dict) and value.get("jcr:primaryType") == "cq:Page":
-                node_hash["{}.html".format(root_path)]["children"].append("{}/{}.html".format(root_path, key))
+                node_hash[f"{root_path}.html"]["children"].append(f"{root_path}/{key}.html")
                 node_hash.update(get_page_hierarchy(
-                    root_url=root_url, root_path="{}/{}".format(root_path, key), include_jcr_content=include_jcr_content,
+                    root_url=root_url, root_path=f"{root_path}/{key}", include_jcr_content=include_jcr_content,
                     jcr_json=value, depth=kwargs.get("depth", 0)+1, parent_path=root_path))
 
         return node_hash
     except AttributeError as ae:
         message = "An error occurred when creating a page hierarchy for the given url and path. " \
-                  "Unexpected or incomplete jcr content received. root_url: {} root_path: {} jcr_json: {} | " \
-                  "Exception: {}".format(root_url, root_path, jcr_json, ae.message)
+                  f"Unexpected or incomplete jcr content received. root_url: {root_url} root_path: {root_path} jcr_json: {jcr_json} | " \
+                  f"Exception: {ae.message}"
         raise JCRHelperException(message, stacktrace=traceback.format_exc())
 
 
@@ -127,12 +124,12 @@ class JCRHelperException(Exception):
     def __str__(self):
         exception_msg = "JCR Helper Exception: \n"
         if self.stacktrace is not None:
-            exception_msg += "{0}".format(self.stacktrace)
+            exception_msg += f"{self.stacktrace}"
         if self.details:
             detail_string = "\nException Details:\n"
             for key, value in self.details.items():
-                detail_string += "{0}: {1}\n".format(key, value)
+                detail_string += f"{key}: {value}\n"
             exception_msg += detail_string
-        exception_msg += "Message: {0}".format(self.msg)
+        exception_msg += f"Message: {self.msg}"
 
         return exception_msg

@@ -1,14 +1,12 @@
-import boto.s3.connection
+import boto3
 import mimetypes
 import os
 import shutil
 import tempfile
 import urllib
-import urlparse
+from urllib.parse import urlparse, parse_qs, urlunparse, urlencode
 import logging
-
-from boto.s3.key import Key
-from StringIO import StringIO
+import io
 
 logger = logging.getLogger(__name__)
 
@@ -36,105 +34,57 @@ class S3Client(object):
             return
 
         try:
-            # - Amazon S3 credentials will use Boto's fall back config, looks for boto.cfg then environment variables
-            self.s3_connection = boto.s3.connection.S3Connection(
-                is_secure=False)
-            self.bucket = self.s3_connection.get_bucket(
-                self.bucket_name, validate=False)
+            self.s3_connection = boto3.client('s3', aws_access_key_id=os.environ['AWS_ACCESS_KEY_ID'],
+                            aws_secret_access_key=os.environ['AWS_SECRET_ACCESS_KEY'])
 
         except Exception as s3_connection_exception:
             # - Reset the variables on failure to allow a reconnect
             self.s3_connection = None
-            self.bucket = None
-            message = "Exception while connecting to S3: {0}".format(s3_connection_exception)
-            raise S3ClientException(message)
+            self.bucket_name = None
+            message = f"Exception while connecting to S3: {s3_connection_exception}"
+            raise message
 
-    def store_file(self, s3_path, file_to_store, filename, return_url=False, mime_type=None,
-                   chunk_at_size=DEFAULT_MINIMUM_SPLIT_AT_SIZE):
+
+
+    def store_file(self, s3_path, file_to_store, filename, return_url=False, mime_type=None):
         """
         Pushes the desired file up to S3 (e.g. log file).
         :param
             - s3_path:          string - The S3 path to the folder in which you'd like to store the file
-            - file_to_store:    StringIO or string - The fileIO or file local file path for the file to be sent
+            - file_to_store:    BytesIO or string - The fileIO or file local file path for the file to be sent
             - filename:         string - The name the file will have when on S3. Should include the file extension
             - return_url:       boolean - Whether to return the path to the file on S3
-            - mime_type:        string - the mime type the file should be saved as, ex: text/html or image/png
-            - chunk_at_size:    int - the size of which the file should be split to multi-upload (default ~ 20 mb)
         :return
             - file_url:         string - The path to the file on S3. This is returned only is return_url is set to true
         """
         self.connect()
 
         try:
-            s3_file = Key(self.bucket)
-            s3_file.key = self._generate_file_path(s3_path, filename)
-            # --- Set the Content type for the file being sent (so that it downloads properly)
-            # - content_type can be 'image/png', 'application/pdf', 'text/plain', etc.
-            mime_type = mimetypes.guess_type(filename) if mime_type is None else mime_type
-            s3_file.set_metadata('Content-Type', mime_type)
-
-            # - Check if file is a buffer or disk file and if file that is getting uploaded is greater than
-            #   chunk_at_size then upload cool multi style
-            mutli_part_upload_successful = False
-            if isinstance(file_to_store, str) and os.path.getsize(file_to_store) > chunk_at_size:
-                split_file_dir = None
-                multipart_file = self.bucket.initiate_multipart_upload(key_name=s3_file.key, metadata=s3_file.metadata)
-
-                try:
-                    # - Split the file and get it chunky
-                    split_file_dir = self._split_file(file_to_store)
-
-                    # - Upload the file parts
-                    file_count = 0
-                    for files in os.listdir(split_file_dir):
-                        file_count += 1
-                        file_part = open(os.path.join(split_file_dir, files), 'rb')
-                        multipart_file.upload_part_from_file(file_part, file_count)
-
-                    # - Complete the upload
-                    multipart_file.complete_upload()
-                    mutli_part_upload_successful = True
-                except boto.s3.connection.S3ResponseError as s3_error:
-                    logger.warning("A S3 Response error was caught while attempting to chunk and upload the PDF | {}\n"
-                                   "Will now attempt to send the file as a whole...".format(s3_error))
-                    multipart_file.cancel_upload()
-                except Exception as s3_error:
-                    logger.warning("Unexpected Error encountered an issue while chunking and uploading the PDF | {}\n"
-                                   "Will now attempt to send the file as a whole...".format(s3_error))
-                    multipart_file.cancel_upload()
-                finally:
-                    # - Remove the folder from splitting the file
-                    if split_file_dir:
-                        shutil.rmtree(split_file_dir)
-
-            # - Upload the file as a whole
-            if not mutli_part_upload_successful:
+            s3_file_path = self._generate_file_path(s3_path, filename)
+            if isinstance(file_to_store, io.BytesIO):
                 file_type = type(file_to_store)
-                if file_type in [str, unicode]:
-                    s3_file.set_contents_from_filename(file_to_store)
+                if file_type in [str, bytes, io.BytesIO]:
+                    self.s3_connection.put_object(Body=file_to_store, Bucket=self.bucket_name, Key=s3_file_path)
                 else:
-                    s3_file.set_contents_from_file(file_to_store)
-
+                    self.s3_connection.put_object(Body=file_to_store, Bucket=self.bucket_name, Key=s3_file_path)
+            else:
+                self.s3_connection.upload_file(file_to_store, self.bucket_name, s3_file_path)
+            
             if return_url:
-                file_key = self.bucket.get_key(s3_file.key)
-                file_key.set_acl('public-read')
-                file_url = file_key.generate_url(0, query_auth=False)
-
-                # - Certain server side permissions might cause a x-amz-security-token parameter to be added to the url
-                # Split the url into its pieces
-                scheme, netloc, path, params, query, fragment = urlparse.urlparse(file_url)
-                # Check whether the x-amz-security-token parameter was appended to the url and remove it
-                params = urlparse.parse_qs(query)
-                if 'x-amz-security-token' in params:
-                    del params['x-amz-security-token']
-                # Rebuild the params without the x-amz-security-token
-                query = urllib.urlencode(params)
-
-                return urlparse.urlunparse((scheme, netloc, path, params, query, fragment))
+                file_url = self.s3_connection.generate_presigned_url('put_object', Params={'Bucket': self.bucket_name, 'Key': s3_file_path, 'ACL': 'public-read'}, ExpiresIn=360000)
+                # Additional check for s3 AccessToken
+                list_url = file_url.split('?')
+                len_url = len(list_url)
+                if len_url == 1:
+                    return file_url
+                elif len_url > 1:
+                    return list_url[0]
+                else:
+                    return file_url
 
         except Exception as store_file_exception:
-            message = "Exception while storing file on S3: {0}".format(store_file_exception)
-            raise S3ClientException(message)
+            message = f"Exception while storing file on S3: {store_file_exception}"
+            raise message
 
     def get_file(self, s3_path, file_to_get):
         """
@@ -149,7 +99,7 @@ class S3Client(object):
 
         try:
             if self.verify_file(s3_path, file_to_get):
-                retrieved_file = StringIO()
+                retrieved_file = io.BytesIO()
                 s3_file = self.bucket.get_key(
                     self._generate_file_path(s3_path, file_to_get))
                 s3_file.get_contents_to_file(retrieved_file)
@@ -158,7 +108,7 @@ class S3Client(object):
                 raise S3ClientException("File not found in S3")
 
         except Exception as get_file_exception:
-            message = "Exception while retrieving file from S3: {0}".format(get_file_exception)
+            message = f"Exception while retrieving file from S3: {get_file_exception}"
             raise S3ClientException(message)
 
     def verify_file(self, s3_path, file_to_verify):
@@ -181,7 +131,7 @@ class S3Client(object):
                 return False
 
         except Exception as verify_file_exception:
-            message = "Exception while verifying file on S3: {0}".format(verify_file_exception)
+            message = f"Exception while verifying file on S3: {verify_file_exception}"
             raise S3ClientException(message)
 
     def _generate_file_path(self, s3_path, file_to_store):
@@ -193,7 +143,7 @@ class S3Client(object):
         :return
             - string:    The concatenated version of the /folder/filename path
         """
-        return "{0}/{1}".format(s3_path.strip("/"), file_to_store.strip("/"))
+        return f"{(s3_path.strip('/'))}/{(file_to_store.strip('/'))}"
 
     def get_all_filenames_in_folder(self, path_to_folder):
         """
@@ -253,7 +203,7 @@ class S3Client(object):
 
             return temp_dir
         except Exception as e:
-            raise S3ClientException("Could not split the file.\nError: {}\n".format(e))
+            raise S3ClientException("Could not split the file.\nError: {e}\n")
 
 
 class S3ClientException(Exception):
