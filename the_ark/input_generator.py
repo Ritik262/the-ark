@@ -14,7 +14,7 @@ DEFAULT_INTEGER_MIN = 1
 DEFAULT_INTEGER_MAX = 9
 DEFAULT_INTEGER = 1
 DEFAULT_INDEX_OPTIONS = 2
-DEFAULT_DOMAIN = "meltmedia"
+DEFAULT_DOMAIN = "meltmedia.com"
 DEFAULT_START_DATE = str((datetime.now() - timedelta(weeks=52 * 20)).date())
 DEFAULT_END_DATE = str((datetime.now() - timedelta(weeks=52 * 100)).date())
 DEFAULT_DATE_FORMAT = "%m/%d/%Y"
